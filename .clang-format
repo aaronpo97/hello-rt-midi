@@ -1,0 +1,9 @@
+AlignConsecutiveAssignments: true
+AlignConsecutiveDeclarations: true
+BinPackParameters: false
+BreakBeforeBraces: Allman
+ColumnLimit: 80
+PointerAlignment: Right
+QualifierAlignment: Right
+UseTab: Never
+NamespaceIndentation: All
