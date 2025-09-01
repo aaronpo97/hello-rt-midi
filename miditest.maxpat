@@ -1,14 +1,49 @@
 {
   "patcher": {
+    "fileversion": 1,
+    "appversion": {
+      "major": 8,
+      "minor": 6,
+      "revision": 5,
+      "architecture": "x64",
+      "modernui": 1
+    },
     "classnamespace": "box",
     "rect": [
       200,
-      120,
+      94,
       560,
-      320
+      346
     ],
     "bglocked": 0,
     "openinpresentation": 0,
+    "default_fontsize": 12,
+    "default_fontface": 0,
+    "gridonopen": 1,
+    "gridsize": [
+      15,
+      15
+    ],
+    "gridsnaponopen": 1,
+    "objectsnaponopen": 1,
+    "statusbarvisible": 2,
+    "toolbarvisible": 1,
+    "lefttoolbarpinned": 0,
+    "toptoolbarpinned": 0,
+    "righttoolbarpinned": 0,
+    "bottomtoolbarpinned": 0,
+    "toolbars_unpinned_last_save": 0,
+    "tallnewobj": 0,
+    "boxanimatetime": 200,
+    "enablehscroll": 1,
+    "enablevscroll": 1,
+    "devicewidth": 0,
+    "description": "",
+    "digest": "",
+    "tags": "",
+    "style": "",
+    "subpatcher_template": "",
+    "assistshowspatchername": 0,
     "boxes": [
       {
         "box": {
@@ -16,6 +51,10 @@
           "maxclass": "toggle",
           "numinlets": 1,
           "numoutlets": 1,
+          "outlettype": [
+            "int"
+          ],
+          "parameter_enable": 0,
           "patching_rect": [
             40,
             40,
@@ -28,124 +67,139 @@
         "box": {
           "id": "metro",
           "maxclass": "newobj",
-          "text": "metro 250",
           "numinlets": 2,
           "numoutlets": 1,
+          "outlettype": [
+            "bang"
+          ],
           "patching_rect": [
-            90,
             40,
             70,
+            69,
             22
-          ]
+          ],
+          "text": "metro 2500"
         }
       },
       {
         "box": {
           "id": "counter",
           "maxclass": "newobj",
-          "text": "counter 60 72",
           "numinlets": 5,
-          "numoutlets": 3,
+          "numoutlets": 4,
+          "outlettype": [
+            "int",
+            "",
+            "",
+            "int"
+          ],
           "patching_rect": [
-            180,
             40,
+            101,
             100,
             22
-          ]
+          ],
+          "text": "counter 60 72"
         }
       },
       {
         "box": {
           "id": "makenote",
           "maxclass": "newobj",
-          "text": "makenote 100 100",
           "numinlets": 3,
           "numoutlets": 2,
+          "outlettype": [
+            "float",
+            "float"
+          ],
           "patching_rect": [
-            300,
             40,
-            120,
+            135,
+            115,
             22
-          ]
+          ],
+          "text": "makenote 100 1000"
         }
       },
       {
         "box": {
           "id": "noteout",
           "maxclass": "newobj",
-          "text": "noteout",
           "numinlets": 3,
           "numoutlets": 0,
           "patching_rect": [
-            440,
             40,
+            173,
             60,
             22
-          ]
+          ],
+          "text": "noteout"
         }
       }
     ],
     "lines": [
       {
         "patchline": {
+          "destination": [
+            "makenote",
+            0
+          ],
+          "source": [
+            "counter",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "destination": [
+            "noteout",
+            1
+          ],
+          "source": [
+            "makenote",
+            1
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "destination": [
+            "noteout",
+            0
+          ],
+          "source": [
+            "makenote",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "destination": [
+            "counter",
+            0
+          ],
+          "source": [
+            "metro",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "destination": [
+            "metro",
+            0
+          ],
           "source": [
             "toggle",
             0
-          ],
-          "destination": [
-            "metro",
-            0
-          ]
-        }
-      },
-      {
-        "patchline": {
-          "source": [
-            "metro",
-            0
-          ],
-          "destination": [
-            "counter",
-            0
-          ]
-        }
-      },
-      {
-        "patchline": {
-          "source": [
-            "counter",
-            0
-          ],
-          "destination": [
-            "makenote",
-            0
-          ]
-        }
-      },
-      {
-        "patchline": {
-          "source": [
-            "makenote",
-            0
-          ],
-          "destination": [
-            "noteout",
-            0
-          ]
-        }
-      },
-      {
-        "patchline": {
-          "source": [
-            "makenote",
-            1
-          ],
-          "destination": [
-            "noteout",
-            1
           ]
         }
       }
-    ]
+    ],
+    "dependency_cache": [],
+    "autosave": 0
   }
 }
