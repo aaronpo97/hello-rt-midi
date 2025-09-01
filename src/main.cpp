@@ -32,6 +32,11 @@ std::ostream &operator<<(std::ostream &os, MidiEvent const &event)
   return os;
 }
 
+uint8_t constexpr noteOff     = 0x80;
+uint8_t constexpr noteOn      = 0x90;
+uint8_t constexpr typeMask    = 0xF0; // message type nibble
+uint8_t constexpr channelMask = 0x0F;
+
 int main()
 {
   try
@@ -55,7 +60,7 @@ int main()
     std::string input;
     int         portNumber{};
 
-    bool isValidPort       = false;
+    bool isValidPort      = false;
     auto checkIfValidPort = [numPorts](int const port) -> bool
     { return port >= 0 && port < numPorts; };
 
@@ -93,13 +98,12 @@ int main()
       if (!msg || msg->size() < 3)
         return;
 
-      uint8_t const status       = msg->at(0);
-      uint8_t const type         = status & 0xF0; // message type nibble
-      uint8_t const chan         = status & 0x0F; // channel (0–15)
-      uint8_t const data1        = msg->at(1);
-      uint8_t const data2        = msg->at(2);
-      uint8_t constexpr noteOff = 0x80;
-      uint8_t constexpr noteOn  = 0x90;
+      uint8_t const status = msg->at(0);
+
+      uint8_t const type  = status & typeMask;    // message type nibble
+      uint8_t const chan  = status & channelMask; // channel (0–15)
+      uint8_t const data1 = msg->at(1);
+      uint8_t const data2 = msg->at(2);
 
       // Only handle channel voice Note Off (0x80) and Note On (0x90)
       if (type == noteOff)
