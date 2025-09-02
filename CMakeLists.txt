@@ -16,5 +16,11 @@ FetchContent_Declare(
     URL https://github.com/thestk/rtmidi/archive/refs/tags/6.0.0.tar.gz
 )
 FetchContent_MakeAvailable(rtmidi)
+FetchContent_Declare(
+    spdlog
+    URL https://github.com/gabime/spdlog/archive/refs/tags/v1.13.0.tar.gz
+)
+FetchContent_MakeAvailable(spdlog)
 
+target_link_libraries(${PROJECT_NAME} PRIVATE spdlog::spdlog)
 target_link_libraries(${PROJECT_NAME} PRIVATE rtmidi)

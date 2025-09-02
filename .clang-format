@@ -1,9 +1,11 @@
 AlignConsecutiveAssignments: true
 AlignConsecutiveDeclarations: true
 BinPackParameters: false
-BreakBeforeBraces: Allman
+BreakBeforeBraces: Attach
 ColumnLimit: 80
 PointerAlignment: Right
 QualifierAlignment: Right
 UseTab: Never
 NamespaceIndentation: All
+AllowShortFunctionsOnASingleLine: None
+IndentWidth: 4

@@ -1,5 +1,9 @@
 #include "RtMidi.h"
+#include "spdlog/async.h"
+#include "spdlog/sinks/stdout_color_sinks.h"
+#include "spdlog/spdlog.h"
 
+#include <chrono>
 #include <cstdint>
 #include <cstdlib>
 #include <iomanip>
@@ -7,141 +11,155 @@
 #include <memory>
 #include <vector>
 
-struct MidiEvent
-{
-  uint8_t pitch;
-  uint8_t velocity;
-  bool    active; // true = note-on, false = note-off
-  uint8_t channel;
+struct MidiEvent {
+    uint8_t pitch;
+    uint8_t velocity;
+    bool    active;
+    uint8_t channel;
 };
 
-std::ostream &operator<<(std::ostream &os, MidiEvent const &event)
-{
-  os << "\n";
-  os << std::left;
+constexpr uint8_t c_noteOff     = 0x80;
+constexpr uint8_t c_noteOn      = 0x90;
+constexpr uint8_t c_typeMask    = 0xF0;
+constexpr uint8_t c_channelMask = 0x0F;
 
-  os << std::setw(12) << "Status:" << (event.active ? "Note On" : "Note Off")
-     << "\n";
-  os << std::setw(12) << "Pitch: " << static_cast<uint>(event.pitch) << "\n";
-  os << std::setw(12) << "Velocity: " << static_cast<uint>(event.velocity)
-     << "\n";
+class MidiListener {
+    std::shared_ptr<spdlog::logger> m_logger;
+    std::unique_ptr<RtMidiIn>       m_midiIn;
+    int                             m_portNumber = -1;
 
-  os << std::setw(12) << "Channel: " << static_cast<uint>(event.channel)
-     << "\n";
+  public:
+    explicit MidiListener(std::shared_ptr<spdlog::logger> logger);
+    [[nodiscard]] bool listPorts() const;
+    bool               openPort();
+    bool               start() const;
+};
 
-  return os;
+MidiListener::MidiListener(std::shared_ptr<spdlog::logger> logger)
+    : m_logger(std::move(logger)), m_midiIn(std::make_unique<RtMidiIn>()) {
 }
 
-uint8_t constexpr noteOff     = 0x80;
-uint8_t constexpr noteOn      = 0x90;
-uint8_t constexpr typeMask    = 0xF0; // message type nibble
-uint8_t constexpr channelMask = 0x0F;
-
-int main()
-{
-  try
-  {
-    auto midiIn = std::make_unique<RtMidiIn>();
-
-    // List ports
-    uint32_t const numPorts = midiIn->getPortCount();
-    if (numPorts == 0)
-    {
-      std::cout << "No MIDI input ports available.\n";
-      return EXIT_SUCCESS;
+bool MidiListener::listPorts() const {
+    uint32_t const numPorts = m_midiIn->getPortCount();
+    if (numPorts == 0) {
+        std::cout << "No MIDI input ports available.\n";
+        return false;
     }
-
     std::cout << "Available MIDI input ports:\n";
     for (unsigned int i = 0; i < numPorts; ++i)
-    {
-      std::cout << "  [" << i << "] " << midiIn->getPortName(i) << "\n";
+        std::cout << "  [" << i << "] " << m_midiIn->getPortName(i) << "\n";
+    return true;
+}
+
+bool MidiListener::openPort() {
+    uint32_t numPorts = m_midiIn->getPortCount();
+    if (numPorts == 0) {
+        return false;
     }
 
     std::string input;
     int         portNumber{};
 
-    bool isValidPort      = false;
-    auto checkIfValidPort = [numPorts](int const port) -> bool
-    { return port >= 0 && port < numPorts; };
-
-    while (!isValidPort)
-    {
-      std::cout << "Please provide a port number and press ENTER: ";
-      if (std::getline(std::cin, input))
-      {
-        try
-        {
-          portNumber = std::stoi(input); // convert string to int
-          if (!checkIfValidPort(portNumber))
-          {
-            throw std::runtime_error("Invalid port number.");
-          }
-
-          isValidPort = true;
-        }
-        catch (std::exception &)
-        {
-          portNumber = -1;
-          std::cout << "Please try again." << "\n";
-        }
-      }
-    }
-    midiIn->openPort(portNumber);
-
-    // Receive everything (sysex/timing/active-sensing)
-    midiIn->ignoreTypes(false, false, false);
-
-    // decode Note On/Off and print
-    RtMidiIn::RtMidiCallback callback =
-        +[](double, std::vector<unsigned char> *msg, void *)
-    {
-      if (!msg || msg->size() < 3)
-        return;
-
-      uint8_t const status = msg->at(0);
-
-      uint8_t const type  = status & typeMask;    // message type nibble
-      uint8_t const chan  = status & channelMask; // channel (0–15)
-      uint8_t const data1 = msg->at(1);
-      uint8_t const data2 = msg->at(2);
-
-      // Only handle channel voice Note Off (0x80) and Note On (0x90)
-      if (type == noteOff)
-      {
-        MidiEvent const ev{.pitch    = data1,
-                           .velocity = data2,
-                           .active   = false,
-                           .channel  = chan};
-
-        std::cout << ev;
-      }
-      else if (type == noteOn)
-      {
-        // Velocity 0 is treated as Note Off by many devices
-        bool const isOn = (data2 != 0);
-        MidiEvent  ev{data1, data2, isOn, chan};
-        std::cout << ev;
-      }
-      // Other message types ignored
+    auto checkIfValidPort = [numPorts](int const port) -> bool {
+        return port >= 0 && port < static_cast<int>(numPorts);
     };
 
-    midiIn->setCallback(callback, nullptr);
+    while (true) {
+        std::cout << "Please provide a port number and press ENTER: ";
+        if (!std::getline(std::cin, input))
+            return false;
+        try {
+            portNumber = std::stoi(input);
+            if (!checkIfValidPort(portNumber))
+                throw std::runtime_error("Invalid port number.");
+            break;
+        } catch (...) {
+            std::cout << "Please try again.\n";
+        }
+    }
 
-    std::cout << "\nReading MIDI input from port " << portNumber
-              << " ... press <Enter> to quit.\n";
+    m_midiIn->openPort(portNumber);
+    m_midiIn->ignoreTypes(false, false, false);
+    m_portNumber = portNumber;
+    return true;
+}
 
-    std::cin.get(); // block until Enter
-  }
-  catch (RtMidiError &e)
-  {
-    std::cerr << "RtMidiError: " << e.getMessage() << "\n";
-    return EXIT_FAILURE;
-  }
-  catch (std::exception const &e)
-  {
-    std::cerr << "Error: " << e.what() << "\n";
-    return EXIT_FAILURE;
-  }
+bool MidiListener::start() const {
+    try {
+        m_midiIn->setCallback(
+            +[](double timestamp, std::vector<unsigned char> *msg,
+                void *user) noexcept {
+                if (!msg || msg->size() < 3) {
+                    return;
+                }
 
-  return EXIT_SUCCESS;
+                auto *log = static_cast<spdlog::logger *>(user);
+
+                uint8_t const status = (*msg)[0];
+                uint8_t const type   = status & c_typeMask;
+                uint8_t const chan   = status & c_channelMask;
+                uint8_t const d1     = (*msg)[1];
+                uint8_t const d2     = (*msg)[2];
+
+                MidiEvent ev = {.pitch    = d1,
+                                .velocity = d2,
+                                .active   = (type == c_noteOn && d2 > 0),
+                                .channel  = chan};
+
+                log->info("t={:<5.2f} {:<9} pitch={:<3} vel={:<4} chan={:<2}",
+                          timestamp,
+                          (type == c_noteOff || (type == c_noteOn && d2 == 0)
+                               ? "Note Off"
+                               : "Note On"),
+                          ev.pitch, ev.velocity, ev.channel + 1);
+            },
+            m_logger.get());
+
+        std::cout << "\nReading MIDI input from port " << m_portNumber
+                  << " ... press <Enter> to quit.\n";
+        std::cin.get();
+        m_midiIn->cancelCallback();
+        m_midiIn->closePort();
+        return true;
+    } catch (...) {
+        return false;
+    }
+}
+
+int main() {
+    try {
+        spdlog::init_thread_pool(8192, 1);
+
+        auto console_sink =
+            std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
+
+        console_sink->set_pattern("[%H:%M:%S.%e] [%^%l%$] %v");
+
+        auto const logger = std::make_shared<spdlog::async_logger>(
+            "midi", console_sink, spdlog::thread_pool(),
+            spdlog::async_overflow_policy::overrun_oldest);
+
+        spdlog::register_logger(logger);
+        spdlog::flush_every(std::chrono::seconds(5));
+
+        logger->set_level(spdlog::level::info);
+
+        MidiListener listener(logger);
+
+        if (!listener.listPorts()) {
+            throw std::runtime_error("Failed to list ports.");
+        }
+        if (!listener.openPort()) {
+            throw std::runtime_error("Failed to open port.");
+        }
+        if (!listener.start()) {
+            throw std::runtime_error("Failed to start listener.");
+        }
+
+        spdlog::shutdown();
+    } catch (std::exception const &e) {
+        std::cerr << "Error: " << e.what() << "\n";
+        return EXIT_FAILURE;
+    }
+    return EXIT_SUCCESS;
 }
